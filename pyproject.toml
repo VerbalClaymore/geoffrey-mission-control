@@ -1,0 +1,15 @@
+[build-system]
+requires = []
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geoffrey-mission-control"
+version = "1.0.0"
+description = "Evidence-backed portfolio oversight for Hermes Kanban"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

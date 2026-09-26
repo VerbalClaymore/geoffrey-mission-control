@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "demo-checkpoint",
+  "project_id": "demo",
+  "observed_at": "2026-01-01T00:00:00Z",
+  "state": "ready",
+  "summary": "Synthetic checkpoint",
+  "next_action": "Review",
+  "decision": null,
+  "evidence": [{"kind": "other", "ref": "synthetic", "at": "2026-01-01T00:00:00Z"}],
+  "provenance": {"surface": "unknown", "author": "fixture"}
+}
