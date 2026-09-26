@@ -36,7 +36,10 @@ class AcceptanceHarness(unittest.TestCase):
         subprocess.run(["git", "config", "user.name", "Fixture"], cwd=self.repo, check=True)
         (self.repo / "README").write_text("synthetic\n")
         subprocess.run(["git", "add", "README"], cwd=self.repo, check=True)
-        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=self.repo, check=True)
+        commit_env = os.environ.copy()
+        commit_env["GIT_AUTHOR_DATE"] = "2026-09-26T23:00:00Z"
+        commit_env["GIT_COMMITTER_DATE"] = "2026-09-26T23:00:00Z"
+        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=self.repo, env=commit_env, check=True)
         self.state = self.root / "state"
         self.registry = self.root / "registry.json"
         self.registry.write_text(json.dumps({
