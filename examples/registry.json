@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "projects": [
+    {
+      "id": "demo",
+      "name": "Synthetic Demo",
+      "goal": "Exercise v1",
+      "milestone": "smoke",
+      "repo_path": null,
+      "owner": {"surface": "unknown", "profile": null, "session_ref": null},
+      "canonical_spec": null,
+      "permission": "observe",
+      "paused": false,
+      "stale_after_hours": 48,
+      "kanban_refs": []
+    }
+  ]
+}
