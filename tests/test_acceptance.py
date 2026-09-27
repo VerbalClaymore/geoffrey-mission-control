@@ -12,7 +12,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +22,7 @@ from geoffrey_mission_control.store import Store
 from geoffrey_mission_control.packets import make_packet, write_packet
 
 NOW = "2026-09-27T00:00:00Z"
+TASK_CREATED_AT = int(datetime.fromisoformat(NOW.replace("Z", "+00:00")).timestamp()) - 60
 
 
 class AcceptanceHarness(unittest.TestCase):
@@ -101,9 +101,9 @@ class AcceptanceHarness(unittest.TestCase):
 
     def fake_hermes(self, task_id="t_fixture", status="blocked", body=None, board="synthetic", log=None, tasks=None, assignee="geoffrey"):
         exe = self.root / "hermes"
-        # Keep the external fixture just behind the real clock while also
-        # remaining valid for the later controlled clocks used by tests.
-        created_at = int(time.time()) - 60
+        # Keep the external fixture just behind the controlled acceptance clock;
+        # wall-clock timestamps can be after NOW on CI and look future-dated.
+        created_at = TASK_CREATED_AT
         payload = {"id": task_id, "assignee": assignee, "status": status,
                    "body": body or "synthetic", "created_at": created_at,
                    "started_at": None, "completed_at": None}
@@ -118,7 +118,7 @@ class AcceptanceHarness(unittest.TestCase):
         self.assertEqual(self.call("scan", "--now", NOW)[0], 0)
         with contextlib.closing(Store(self.state)) as store: oid = store.latest_observation("demo")["id"]
         log = self.root / "hermes.log"
-        unrelated = {"id": "unrelated", "assignee": "geoffrey", "status": "running", "body": "synthetic", "created_at": int(time.time()) - 60, "started_at": None, "completed_at": None}
+        unrelated = {"id": "unrelated", "assignee": "geoffrey", "status": "running", "body": "synthetic", "created_at": TASK_CREATED_AT, "started_at": None, "completed_at": None}
         self.fake_hermes(task_id="unrelated", status="running", board="synthetic", log=log, tasks=[unrelated])
         old_path = os.environ.get("PATH", ""); os.environ["PATH"] = str(self.root) + os.pathsep + old_path
         try:
@@ -168,7 +168,7 @@ class AcceptanceHarness(unittest.TestCase):
         with contextlib.closing(Store(self.state)) as store:
             oid = store.latest_observation("demo")["id"]
         tasks = [{"id": f"external-{index:03d}", "assignee": "geoffrey", "status": "ready",
-                  "body": "synthetic", "created_at": int(time.time()) - 60,
+                  "body": "synthetic", "created_at": TASK_CREATED_AT,
                   "started_at": None, "completed_at": None,
                   "unknown": {"nested": index}} for index in range(101)]
         self.fake_hermes(tasks=tasks)
