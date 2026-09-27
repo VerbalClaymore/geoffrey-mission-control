@@ -8,7 +8,10 @@ from datetime import datetime, timedelta, timezone
 
 from .contracts import load_json, timestamp
 
-HERMES_VERSION = "0.21.5+2453.gd0288be"
+HERMES_VERSIONS = frozenset({
+    "0.21.5+2453.gd0288be",
+    "0.21.5+2858.gb7d0620",
+})
 HERMES_STATUSES = {"triage", "todo", "ready", "running", "blocked", "review", "done", "archived", "scheduled"}
 MAX_EXTERNAL_TASKS = 100
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -37,6 +40,16 @@ def _bounded_output(value):
     if not isinstance(value, str) or len(value.encode("utf-8")) > 1024 * 1024:
         raise ValueError("output exceeds 1 MiB")
     return value
+
+
+def _version_token(first_line):
+    match = re.search(r"(?<![A-Za-z0-9])v?(\d+\.\d+\.\d+\+[0-9]+\.g[0-9a-f]+[^\s]*)", first_line)
+    return match.group(1) if match else None
+
+
+def _supported_version(first_line):
+    """Accept only a complete reviewed version token on the first line."""
+    return _version_token(first_line) in HERMES_VERSIONS
 
 
 def _run(runner, argv, *, cwd=None):
@@ -99,7 +112,7 @@ def hermes_collect(board, task_id, runner=subprocess.run, hermes_bin="hermes", *
         _validate_route(board, task_id)
         version, _ = _run(runner, [hermes_bin, "--version"])
         first = version.splitlines()[0] if version.splitlines() else ""
-        if HERMES_VERSION not in first:
+        if not _supported_version(first):
             return {"ok": False, "error": "hermes: unsupported_version"}
         listing, _ = _run(runner, [hermes_bin, "kanban", "--board", board, "list", "--json"])
         values = load_json(listing.encode("utf-8"))
@@ -130,7 +143,7 @@ def hermes_collect(board, task_id, runner=subprocess.run, hermes_bin="hermes", *
             for key in ("created_at", "started_at", "completed_at"):
                 if task.get(key) is not None and _instant(task[key]) > limit:
                     return {"ok": False, "error": "hermes: future timestamp"}
-        return {"ok": True, "board": board, "task": task, "tasks": tasks, "version": HERMES_VERSION}
+        return {"ok": True, "board": board, "task": task, "tasks": tasks, "version": _version_token(first)}
     except Exception as exc:
         text = str(exc)
         if "output exceeds" in text:
@@ -150,7 +163,7 @@ def hermes_board_collect(board, runner=subprocess.run, hermes_bin="hermes", *, n
         _validate_route(board)
         version, _ = _run(runner, [hermes_bin, "--version"])
         first = version.splitlines()[0] if version.splitlines() else ""
-        if HERMES_VERSION not in first:
+        if not _supported_version(first):
             return {"ok": False, "error": "hermes: unsupported_version"}
         listing, _ = _run(runner, [hermes_bin, "kanban", "--board", board, "list", "--json"])
         values = load_json(listing.encode("utf-8"))
@@ -178,7 +191,7 @@ def hermes_board_collect(board, runner=subprocess.run, hermes_bin="hermes", *, n
                 if any(task.get(key) is not None and _instant(task[key]) > limit for key in ("created_at", "started_at", "completed_at")):
                     raise ValueError("future timestamp")
             shown_tasks.append(task)
-        return {"ok": True, "board": board, "tasks": shown_tasks, "version": HERMES_VERSION}
+        return {"ok": True, "board": board, "tasks": shown_tasks, "version": _version_token(first)}
     except Exception as exc:
         text = str(exc)
         if "output exceeds" in text:

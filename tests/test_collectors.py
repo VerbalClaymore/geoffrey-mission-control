@@ -109,6 +109,31 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result["task"]["created_at"], "2026-09-26T18:35:28Z")
         self.assertEqual(result["board"], "board")
 
+    def test_both_hermes_collectors_allow_only_reviewed_exact_versions(self):
+        task = {"id": "t", "assignee": "g", "status": "ready", "body": None,
+                "created_at": 1, "started_at": None, "completed_at": None}
+        for version in ("0.21.5+2453.gd0288be", "0.21.5+2858.gb7d0620"):
+            with self.subTest(version=version):
+                responses = {
+                    ("hermes", "--version"): f"Hermes Agent v{version} (synthetic)\n",
+                    ("hermes", "kanban", "--board", "b", "list", "--json"): json.dumps([task]),
+                    ("hermes", "kanban", "--board", "b", "show", "t", "--json"): json.dumps({"task": task}),
+                }
+                self.assertTrue(hermes_collect("b", "t", FakeRunner(responses))["ok"])
+                self.assertTrue(hermes_board_collect("b", FakeRunner(responses))["ok"])
+
+        for version in ("0.21.5+2858.gb7d0620x", "0.21.5+2858.gb7d0620-extra", "0.21.5+9999.gdeadbee"):
+            with self.subTest(version=version):
+                runner = FakeRunner({("hermes", "--version"): f"Hermes Agent v{version}\n"})
+                self.assertEqual(hermes_collect("b", "t", runner)["error"], "hermes: unsupported_version")
+                runner = FakeRunner({("hermes", "--version"): f"Hermes Agent v{version}\n"})
+                self.assertEqual(hermes_board_collect("b", runner)["error"], "hermes: unsupported_version")
+
+        runner = FakeRunner({
+            ("hermes", "--version"): "banner\nHermes Agent v0.21.5+2858.gb7d0620\n",
+        })
+        self.assertEqual(hermes_collect("b", "t", runner)["error"], "hermes: unsupported_version")
+
     def test_hermes_public_boundary_rejects_invalid_board_and_task_without_calls(self):
         task = {"id": "opaque task/1", "assignee": "geoffrey", "status": "blocked",
                 "body": "x", "created_at": 1, "started_at": None, "completed_at": None}
